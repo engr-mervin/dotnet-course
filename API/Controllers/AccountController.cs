@@ -4,15 +4,16 @@ using System.Text;
 using API.Data;
 using API.DTOs;
 using API.Entities;
+using API.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers;
 
-public class AccountController(DataContext context):  BaseAPIController
+public class AccountController(DataContext context, ITokenService tokenService):  BaseAPIController
 {
     [HttpPost("register")] // api/ccount/register
-    public async Task<ActionResult<AppUser>> Register(RegisterDTO registerDTO){
+    public async Task<ActionResult<UserDTO>> Register(RegisterDTO registerDTO){
 
         if(await UserExists(registerDTO.Username)) 
         {
@@ -29,11 +30,15 @@ public class AccountController(DataContext context):  BaseAPIController
 
         context.Users.Add(user);
         await context.SaveChangesAsync();
-        return user;
+        return new UserDTO
+        {
+            Username = user.UserName,
+            Token = tokenService.CreateToken(user)
+        };
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AppUser>> Login(LoginDTO loginDTO)
+    public async Task<ActionResult<UserDTO>> Login(LoginDTO loginDTO)
     {
         var user = await context.Users.FirstOrDefaultAsync(x => x.UserName.ToLower() == loginDTO.Username.ToLower());
         
@@ -55,7 +60,11 @@ public class AccountController(DataContext context):  BaseAPIController
             }
         }
 
-        return user;
+        return new UserDTO
+        {
+            Username = user.UserName,
+            Token = tokenService.CreateToken(user),
+        };
     }
 
     private async Task<bool> UserExists(string username)
